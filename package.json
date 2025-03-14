@@ -1,0 +1,13 @@
+{
+  "name": "mamba-bot",
+  "version": "1.0.0",
+  "description": "Un bot Discord per Mamba",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.7.1",
+    "dotenv": "^16.0.3"
+  }
+}
