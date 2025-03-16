@@ -5,9 +5,9 @@ const TOKEN = process.env.DISCORD_TOKEN;
 
 // Mappa di ruoli e tag corrispondenti
 const ROLE_TAGS = {
-    "MAMBA TEAM": "[MAMBA] ",
-    "VIP": "[VIP] ",
-    "ADMIN": "[ADMIN] "
+    "🐍 MAMBA TEAM": "[MAMBA] ",
+    "🐍 MAMBA PROVA": "[M.PROVA] ",
+    "🐍 ACADEMY MAMBA": "[ACADEMY] "
 };
 
 // Canali trigger per la creazione di stanze vocali
@@ -16,13 +16,12 @@ const TRIGGER_CHANNELS = {
     "🕛 | CREA STANZA 2": "1312813415466532924", // MAMBA  
     "🕛 | CREA STANZA 3": "1305301814761226340", // STREAMZONE
     "🕛 | CREA STANZA 4": "1336485340893941862", // VALORANT
-   
 };
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMembers, // NECESSARIO per rilevare i cambiamenti nei ruoli
         GatewayIntentBits.GuildVoiceStates
     ]
 });
@@ -33,25 +32,36 @@ client.once('ready', () => {
 
 // Modifica il nickname quando viene assegnato un ruolo con una tag
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
+    console.log(`👀 Vecchi ruoli: ${oldMember.roles.cache.map(r => r.name).join(', ')}`);
+    console.log(`🆕 Nuovi ruoli: ${newMember.roles.cache.map(r => r.name).join(', ')}`);
+
     let newNick = newMember.nickname || newMember.user.username;
 
-    // Rimuove eventuali tag precedenti, anche se il nome contiene emoji
-    newNick = newNick.replace(/^(\[.*?\]\s*)/, '');
+    // Rimuove eventuali tag precedenti
+    newNick = newNick.replace(/^\[.*?\]\s*/, '');
+
+    let updated = false;
 
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        const role = newMember.guild.roles.cache.find(r => r.name === roleName);
+        const role = newMember.guild.roles.cache.find(r => r.name.includes(roleName)); // Usa includes per supportare emoji nel nome
         if (role && newMember.roles.cache.has(role.id)) {
             if (!newNick.startsWith(tag)) {
                 newNick = tag + newNick;
+                updated = true;
             }
         }
     }
 
-    try {
-        await newMember.setNickname(newNick);
-        console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
-    } catch (error) {
-        console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
+    if (updated) {
+        try {
+            await newMember.setNickname(newNick);
+            console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
+        } catch (error) {
+            console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
+        }
+    } else {
+        console.log(`⚠ Nessuna modifica necessaria per ${newMember.user.username}`);
     }
 });
 
