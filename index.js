@@ -38,14 +38,14 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     let baseNick = currentNick;
     let foundTag = "";
 
-    // Rimuove solo il tag esistente se è nella lista ROLE_TAGS
+    // Rimuove qualsiasi tag esistente presente nella mappa
     for (const tag of Object.values(ROLE_TAGS)) {
-        if (currentNick.startsWith(tag)) {
-            baseNick = currentNick.replace(tag, '').trim();
+        if (baseNick.startsWith(tag)) {
+            baseNick = baseNick.replace(tag, '').trim();
         }
     }
 
-    // Trova il nuovo tag da applicare
+    // Controlla se l'utente ha uno dei ruoli con tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
         const role = newMember.guild.roles.cache.find(r => r.name === roleName);
         if (role && newMember.roles.cache.has(role.id)) {
