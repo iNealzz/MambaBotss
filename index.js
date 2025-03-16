@@ -35,8 +35,15 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
     let currentNick = newMember.nickname || newMember.user.username;
-    let newNick = currentNick;
+    let baseNick = currentNick;
     let foundTag = "";
+
+    // Rimuove eventuali tag esistenti
+    for (const tag of Object.values(ROLE_TAGS)) {
+        if (baseNick.startsWith(tag)) {
+            baseNick = baseNick.replace(tag, '');
+        }
+    }
 
     // Controlla se l'utente ha un ruolo con un tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
@@ -47,16 +54,7 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
         }
     }
 
-    // Se ha un tag assegnato, rimuove qualsiasi altro tag e aggiunge il corretto
-    if (foundTag) {
-        // Rimuove eventuali tag precedenti
-        for (const tag of Object.values(ROLE_TAGS)) {
-            if (newNick.startsWith(tag)) {
-                newNick = newNick.replace(tag, '');
-            }
-        }
-        newNick = foundTag + newNick;
-    }
+    let newNick = foundTag ? foundTag + baseNick : baseNick;
 
     // Aggiorna il nickname solo se è cambiato
     if (newNick !== currentNick) {
