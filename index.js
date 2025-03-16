@@ -5,9 +5,9 @@ const TOKEN = process.env.DISCORD_TOKEN;
 
 // Mappa di ruoli e tag corrispondenti
 const ROLE_TAGS = {
-    "🐍 MAMBA TEAM": "[MAMBA] ",
-    "🐍 MAMBA PROVA": "[M.PROVA] ",
-    "🐍 ACADEMY MAMBA": "[ACADEMY] "
+    "MAMBA TEAM": "[MAMBA] ",
+    "VIP": "[VIP] ",
+    "ADMIN": "[ADMIN] "
 };
 
 // Canali trigger per la creazione di stanze vocali
@@ -34,26 +34,24 @@ client.once('ready', () => {
 // Modifica il nickname quando viene assegnato un ruolo con una tag
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     let newNick = newMember.nickname || newMember.user.username;
-    
+
+    // Rimuove eventuali tag precedenti, anche se il nome contiene emoji
+    newNick = newNick.replace(/^(\[.*?\]\s*)/, '');
+
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
         const role = newMember.guild.roles.cache.find(r => r.name === roleName);
-        if (role) {
-            const hadRole = oldMember.roles.cache.has(role.id);
-            const hasRoleNow = newMember.roles.cache.has(role.id);
-            
-            if (!hadRole && hasRoleNow) {
-                if (!newNick.startsWith(tag)) {
-                    newNick = tag + newNick;
-                }
+        if (role && newMember.roles.cache.has(role.id)) {
+            if (!newNick.startsWith(tag)) {
+                newNick = tag + newNick;
             }
         }
     }
-    
+
     try {
         await newMember.setNickname(newNick);
-        console.log(`✅ Nickname aggiornato per ${newMember.user.username}`);
+        console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
     } catch (error) {
-        console.error(`❌ Impossibile cambiare nickname per ${newMember.user.username}: ${error}`);
+        console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
     }
 });
 
