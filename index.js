@@ -33,29 +33,33 @@ client.once('ready', () => {
 // Modifica il nickname quando viene assegnato un ruolo con una tag
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
-    console.log(`👀 Vecchi ruoli: ${oldMember.roles.cache.map(r => r.name).join(', ')}`);
-    console.log(`🆕 Nuovi ruoli: ${newMember.roles.cache.map(r => r.name).join(', ')}`);
+    
+    let currentNick = newMember.nickname || newMember.user.username;
+    let newNick = currentNick;
+    let foundTag = "";
 
-    let newNick = newMember.nickname || newMember.user.username;
-
-    // Rimuove eventuali tag precedenti solo se non ha un ruolo corrispondente
-    for (const tag of Object.values(ROLE_TAGS)) {
-        if (newNick.startsWith(tag)) {
-            newNick = newNick.replace(tag, '');
-        }
-    }
-
-    let selectedTag = "";
+    // Controlla se l'utente ha un ruolo con un tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
         const role = newMember.guild.roles.cache.find(r => r.name.includes(roleName));
         if (role && newMember.roles.cache.has(role.id)) {
-            selectedTag = tag;
-            break; // Assicura che venga aggiunto solo il primo tag corrispondente
+            foundTag = tag;
+            break; // Usa solo il primo tag trovato
         }
     }
 
-    if (selectedTag && !newNick.startsWith(selectedTag)) {
-        newNick = selectedTag + newNick;
+    // Se ha un tag assegnato, rimuove qualsiasi altro tag e aggiunge il corretto
+    if (foundTag) {
+        // Rimuove eventuali tag precedenti
+        for (const tag of Object.values(ROLE_TAGS)) {
+            if (newNick.startsWith(tag)) {
+                newNick = newNick.replace(tag, '');
+            }
+        }
+        newNick = foundTag + newNick;
+    }
+
+    // Aggiorna il nickname solo se è cambiato
+    if (newNick !== currentNick) {
         try {
             await newMember.setNickname(newNick);
             console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
