@@ -38,22 +38,24 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
 
     let newNick = newMember.nickname || newMember.user.username;
 
-    // Rimuove eventuali tag precedenti
-    newNick = newNick.replace(/^\[.*?\]\s*/, '');
-
-    let updated = false;
-
-    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        const role = newMember.guild.roles.cache.find(r => r.name.includes(roleName)); // Usa includes per supportare emoji nel nome
-        if (role && newMember.roles.cache.has(role.id)) {
-            if (!newNick.startsWith(tag)) {
-                newNick = tag + newNick;
-                updated = true;
-            }
+    // Rimuove eventuali tag precedenti solo se non ha un ruolo corrispondente
+    for (const tag of Object.values(ROLE_TAGS)) {
+        if (newNick.startsWith(tag)) {
+            newNick = newNick.replace(tag, '');
         }
     }
 
-    if (updated) {
+    let selectedTag = "";
+    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
+        const role = newMember.guild.roles.cache.find(r => r.name.includes(roleName));
+        if (role && newMember.roles.cache.has(role.id)) {
+            selectedTag = tag;
+            break; // Assicura che venga aggiunto solo il primo tag corrispondente
+        }
+    }
+
+    if (selectedTag && !newNick.startsWith(selectedTag)) {
+        newNick = selectedTag + newNick;
         try {
             await newMember.setNickname(newNick);
             console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
