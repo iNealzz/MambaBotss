@@ -34,16 +34,8 @@ client.once('ready', () => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
-    let currentNick = newMember.nickname || newMember.user.username;
-    let baseNick = currentNick;
+    let baseNick = newMember.user.username; // Usa sempre lo username originale
     let foundTag = "";
-
-    // Rimuove qualsiasi tag esistente presente nella mappa
-    for (const tag of Object.values(ROLE_TAGS)) {
-        if (baseNick.startsWith(tag)) {
-            baseNick = baseNick.replace(tag, '').trim();
-        }
-    }
 
     // Controlla se l'utente ha uno dei ruoli con tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
@@ -54,10 +46,10 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
         }
     }
 
-    let newNick = foundTag ? foundTag + baseNick : baseNick;
+    let newNick = foundTag + baseNick;
 
     // Aggiorna il nickname solo se è cambiato
-    if (newNick !== currentNick) {
+    if (newNick !== newMember.nickname) {
         try {
             await newMember.setNickname(newNick);
             console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
