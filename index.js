@@ -38,9 +38,20 @@ client.once('ready', async () => {
     console.log(`✅ Bot ${client.user.tag} è online!`);
     try {
         console.log("🔍 Tentativo di recuperare il canale ticket...");
-        const channel = await client.channels.fetch(TICKET_CHANNEL_ID);
+        const guild = client.guilds.cache.first();
+        if (!guild) {
+            console.error("❌ Nessuna guild trovata! Il bot è dentro un server?");
+            return;
+        }
+        
+        let channel = guild.channels.cache.get(TICKET_CHANNEL_ID);
         if (!channel) {
-            console.error("❌ Canale ticket non trovato!");
+            console.log("📡 Canale non trovato in cache, provo a fetcharlo...");
+            channel = await guild.channels.fetch(TICKET_CHANNEL_ID);
+        }
+
+        if (!channel) {
+            console.error("❌ Canale ticket non trovato! Controlla l'ID.");
             return;
         }
         console.log(`📢 Canale trovato: ${channel.name} (${channel.id})`);
@@ -57,53 +68,6 @@ client.once('ready', async () => {
         console.log("✅ Messaggio inviato con successo!");
     } catch (error) {
         console.error("❌ Errore durante l'invio del messaggio nel canale ticket:", error);
-    }
-});
-
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isButton()) return;
-    if (interaction.customId === 'open_ticket') {
-        if (activeTickets.has(interaction.user.id)) {
-            return interaction.reply({ content: "⚠️ Hai già un ticket aperto. Chiudi il ticket precedente prima di crearne un altro.", ephemeral: true });
-        }
-
-        const guild = interaction.guild;
-        const category = guild.channels.cache.get(TICKET_CATEGORY_ID);
-        if (!category) return;
-
-        const ticketChannel = await guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
-            type: 0,
-            parent: category.id,
-            permissionOverwrites: [
-                {
-                    id: guild.id,
-                    deny: [PermissionsBitField.Flags.ViewChannel]
-                },
-                {
-                    id: interaction.user.id,
-                    allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
-                },
-                ...STAFF_ROLES.map(roleName => {
-                    const role = guild.roles.cache.find(r => r.name === roleName);
-                    return role ? { id: role.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] } : null;
-                }).filter(Boolean)
-            ]
-        });
-
-        activeTickets.set(interaction.user.id, ticketChannel.id);
-        await interaction.reply({ content: `✅ Ticket creato: ${ticketChannel}`, ephemeral: true });
-    }
-});
-
-client.on('messageCreate', async (message) => {
-    if (message.content === '!chiudi' && message.channel.name.startsWith('ticket-')) {
-        if (!activeTickets.has(message.author.id) || activeTickets.get(message.author.id) !== message.channel.id) {
-            return message.reply("⚠️ Non hai il permesso di chiudere questo ticket.");
-        }
-
-        await message.channel.delete();
-        activeTickets.delete(message.author.id);
     }
 });
 
