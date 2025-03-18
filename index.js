@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionsBitField } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
@@ -18,6 +18,7 @@ const TRIGGER_CHANNELS = {
 
 const TICKET_CATEGORY_ID = "1103995307341140008";
 const SUPPORT_ROLE_ID = "990911592302514226";
+const DISCORD_DESIGNER_ROLE_ID = "1320071503307472896";
 
 const client = new Client({
     intents: [
@@ -59,35 +60,12 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     }
 });
 
-client.on('voiceStateUpdate', async (oldState, newState) => {
-    const member = newState.member;
-    const guild = newState.guild;
-
-    if (newState.channel && TRIGGER_CHANNELS[newState.channel.name]) {
-        const categoryId = TRIGGER_CHANNELS[newState.channel.name];
-        const category = guild.channels.cache.get(categoryId);
-
-        if (!category) {
-            console.error(`❌ Categoria con ID ${categoryId} non trovata!`);
-            return;
-        }
-
-        const newChannel = await guild.channels.create({
-            name: `${member.user.username} Channel`,
-            type: 2,
-            parent: category.id
-        });
-
-        await member.voice.setChannel(newChannel);
-    }
-
-    if (oldState.channel && !newState.channel && oldState.channel.name.endsWith("Channel") && oldState.channel.members.size === 0) {
-        await oldState.channel.delete();
-    }
-});
-
 client.on('messageCreate', async message => {
     if (message.content === '!setup-ticket') {
+        if (!message.member.roles.cache.has(DISCORD_DESIGNER_ROLE_ID)) {
+            return message.reply("❌ Non hai il permesso di usare questo comando.");
+        }
+
         console.log("✅ Comando ricevuto!");
         
         const embed = new EmbedBuilder()
