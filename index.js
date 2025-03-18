@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
@@ -21,7 +21,7 @@ const TRIGGER_CHANNELS = {
 // Configurazione Ticket System
 const TICKET_CATEGORY_ID = "1103995307341140008";
 const TICKET_CHANNEL_ID = "990911592302514226";
-const STAFF_ROLES = ["👑FOUNDER", "🔥 ADMIN", "⚙️ MODERATORE"];
+const STAFF_ROLES = ["Founder", "Admin", "Moderatore"];
 const activeTickets = new Map();
 
 const client = new Client({
@@ -34,90 +34,55 @@ const client = new Client({
     ]
 });
 
-client.once('ready', () => {
+client.once('ready', async () => {
     console.log(`✅ Bot ${client.user.tag} è online!`);
-});
+    const channel = await client.channels.fetch(TICKET_CHANNEL_ID);
+    if (channel) {
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('open_ticket')
+                .setLabel('📧 Apri Ticket')
+                .setStyle(ButtonStyle.Primary)
+        );
 
-// Modifica il nickname quando viene assegnato un ruolo con una tag
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    let baseNick = newMember.user.username;
-    let foundTag = "";
-
-    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        const role = newMember.guild.roles.cache.find(r => r.name === roleName);
-        if (role && newMember.roles.cache.has(role.id)) {
-            foundTag = tag;
-            break;
-        }
-    }
-
-    let newNick = foundTag + baseNick;
-    if (newNick !== newMember.nickname) {
-        try {
-            await newMember.setNickname(newNick);
-        } catch (error) {
-            console.error(`❌ Errore nel cambio nickname: ${error}`);
-        }
+        await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
     }
 });
 
-// Creazione e gestione delle stanze vocali
-client.on('voiceStateUpdate', async (oldState, newState) => {
-    const member = newState.member;
-    const guild = newState.guild;
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isButton()) return;
+    if (interaction.customId === 'open_ticket') {
+        if (activeTickets.has(interaction.user.id)) {
+            return interaction.reply({ content: "⚠️ Hai già un ticket aperto. Chiudi il ticket precedente prima di crearne un altro.", ephemeral: true });
+        }
 
-    if (newState.channel && TRIGGER_CHANNELS[newState.channel.name]) {
-        const categoryId = TRIGGER_CHANNELS[newState.channel.name];
-        const category = guild.channels.cache.get(categoryId);
+        const guild = interaction.guild;
+        const category = guild.channels.cache.get(TICKET_CATEGORY_ID);
         if (!category) return;
 
-        const newChannel = await guild.channels.create({
-            name: `${member.user.username} Channel`,
-            type: 2,
-            parent: category.id
+        const ticketChannel = await guild.channels.create({
+            name: `ticket-${interaction.user.username}`,
+            type: 0,
+            parent: category.id,
+            permissionOverwrites: [
+                {
+                    id: guild.id,
+                    deny: [PermissionsBitField.Flags.ViewChannel]
+                },
+                {
+                    id: interaction.user.id,
+                    allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
+                },
+                ...STAFF_ROLES.map(roleName => {
+                    const role = guild.roles.cache.find(r => r.name === roleName);
+                    return role ? { id: role.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] } : null;
+                }).filter(Boolean)
+            ]
         });
-        await member.voice.setChannel(newChannel);
+
+        activeTickets.set(interaction.user.id, ticketChannel.id);
+        await interaction.reply({ content: `✅ Ticket creato: ${ticketChannel}`, ephemeral: true });
     }
-
-    if (oldState.channel && !newState.channel && oldState.channel.name.endsWith("Channel") && oldState.channel.members.size === 0) {
-        await oldState.channel.delete();
-    }
-});
-
-// Sistema Ticket
-client.on('messageCreate', async (message) => {
-    if (message.channel.id !== TICKET_CHANNEL_ID || message.author.bot) return;
-
-    if (activeTickets.has(message.author.id)) {
-        return message.reply("⚠️ Hai già un ticket aperto. Chiudi il ticket precedente prima di crearne un altro.");
-    }
-
-    const guild = message.guild;
-    const category = guild.channels.cache.get(TICKET_CATEGORY_ID);
-    if (!category) return;
-
-    const ticketChannel = await guild.channels.create({
-        name: `ticket-${message.author.username}`,
-        type: 0,
-        parent: category.id,
-        permissionOverwrites: [
-            {
-                id: guild.id,
-                deny: [PermissionsBitField.Flags.ViewChannel]
-            },
-            {
-                id: message.author.id,
-                allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
-            },
-            ...STAFF_ROLES.map(roleName => {
-                const role = guild.roles.cache.find(r => r.name === roleName);
-                return role ? { id: role.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] } : null;
-            }).filter(Boolean)
-        ]
-    });
-
-    activeTickets.set(message.author.id, ticketChannel.id);
-    message.reply(`✅ Ticket creato: ${ticketChannel}`);
 });
 
 client.on('messageCreate', async (message) => {
