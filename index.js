@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
@@ -12,89 +12,80 @@ const ROLE_TAGS = {
 
 // Canali trigger per la creazione di stanze vocali
 const TRIGGER_CHANNELS = {
-    "🕛 | CREA STANZA 1": "1305304019987730432",
-    "🕛 | CREA STANZA 2": "1312813415466532924",
-    "🕛 | CREA STANZA 3": "1305301814761226340",
-    "🕛 | CREA STANZA 4": "1336485340893941862",
+    "🕛 | CREA STANZA 1": "1305304019987730432", // VOCALI
+    "🕛 | CREA STANZA 2": "1312813415466532924", // MAMBA  
+    "🕛 | CREA STANZA 3": "1305301814761226340", // STREAMZONE
+    "🕛 | CREA STANZA 4": "1336485340893941862", // VALORANT
 };
-
-// Configurazione Ticket System
-const TICKET_CATEGORY_ID = "1103995307341140008";
-const TICKET_CHANNEL_ID = "990911592302514226";
-const STAFF_ROLES = ["👑FOUNDER", "✏️ DISCORD DESIGNER"];
-const activeTickets = new Map();
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.GuildMembers, // NECESSARIO per rilevare i cambiamenti nei ruoli
+        GatewayIntentBits.GuildVoiceStates
     ]
 });
 
-client.once('ready', async () => {
+client.once('ready', () => {
     console.log(`✅ Bot ${client.user.tag} è online!`);
-    try {
-        console.log("🔍 Tentativo di recuperare il canale ticket...");
-        const guild = client.guilds.cache.first();
-        if (!guild) {
-            console.error("❌ Nessuna guild trovata! Il bot è dentro un server?");
-            return;
-        }
-        
-        let channel = guild.channels.cache.get(TICKET_CHANNEL_ID);
-        if (!channel) {
-            console.log("📡 Canale non trovato in cache, provo a fetcharlo...");
-            channel = await guild.channels.fetch(TICKET_CHANNEL_ID);
-        }
+});
 
-        if (!channel) {
-            console.error("❌ Canale ticket non trovato! Controlla l'ID.");
-            return;
+// Modifica il nickname quando viene assegnato un ruolo con una tag
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
+    
+    let baseNick = newMember.user.username; // Usa sempre lo username originale
+    let foundTag = "";
+
+    // Controlla se l'utente ha uno dei ruoli con tag
+    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
+        const role = newMember.guild.roles.cache.find(r => r.name === roleName);
+        if (role && newMember.roles.cache.has(role.id)) {
+            foundTag = tag;
+            break; // Usa solo il primo tag trovato
         }
-        console.log(`📢 Canale trovato: ${channel.name} (${channel.id})`);
+    }
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_ticket')
-                .setLabel('📧 Apri Ticket')
-                .setStyle(ButtonStyle.Primary)
-        );
+    let newNick = foundTag + baseNick;
 
-        console.log("📤 Inviando il messaggio nel canale ticket...");
-        await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
-        console.log("✅ Messaggio inviato con successo!");
-    } catch (error) {
-        console.error("❌ Errore durante l'invio del messaggio nel canale ticket:", error);
+    // Aggiorna il nickname solo se è cambiato
+    if (newNick !== newMember.nickname) {
+        try {
+            await newMember.setNickname(newNick);
+            console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
+        } catch (error) {
+            console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
+        }
+    } else {
+        console.log(`⚠ Nessuna modifica necessaria per ${newMember.user.username}`);
     }
 });
 
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isCommand()) return;
-    
-    if (interaction.commandName === 'ticket') {
-        const memberRoles = interaction.member.roles.cache.map(role => role.name);
-        if (!STAFF_ROLES.some(role => memberRoles.includes(role))) {
-            return interaction.reply({ content: "❌ Non hai il permesso di usare questo comando.", ephemeral: true });
-        }
-        
-        const guild = interaction.guild;
-        const channel = guild.channels.cache.get(TICKET_CHANNEL_ID);
-        if (!channel) {
-            return interaction.reply({ content: "❌ Canale ticket non trovato!", ephemeral: true });
-        }
-        
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_ticket')
-                .setLabel('📧 Apri Ticket')
-                .setStyle(ButtonStyle.Primary)
-        );
+// Creazione e gestione delle stanze vocali
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    const member = newState.member;
+    const guild = newState.guild;
 
-        await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
-        await interaction.reply({ content: "✅ Messaggio inviato nel canale ticket!", ephemeral: true });
+    if (newState.channel && TRIGGER_CHANNELS[newState.channel.name]) {
+        const categoryId = TRIGGER_CHANNELS[newState.channel.name];
+        const category = guild.channels.cache.get(categoryId);
+
+        if (!category) {
+            console.error(`❌ Categoria con ID ${categoryId} non trovata!`);
+            return;
+        }
+
+        const newChannel = await guild.channels.create({
+            name: `${member.user.username} Channel`,
+            type: 2, // Tipo Voice Channel
+            parent: category.id
+        });
+
+        await member.voice.setChannel(newChannel);
+    }
+
+    if (oldState.channel && !newState.channel && oldState.channel.name.endsWith("Channel") && oldState.channel.members.size === 0) {
+        await oldState.channel.delete();
     }
 });
 
