@@ -45,20 +45,16 @@ client.once('ready', async () => {
         }
         console.log(`📢 Canale trovato: ${channel.name} (${channel.id})`);
 
-        const messages = await channel.messages.fetch({ limit: 10 });
-        if (!messages.some(msg => msg.author.id === client.user.id)) {
-            console.log("✉️ Nessun messaggio del bot trovato. Inviando il messaggio di apertura ticket...");
-            const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId('open_ticket')
-                    .setLabel('📧 Apri Ticket')
-                    .setStyle(ButtonStyle.Primary)
-            );
-            await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
-            console.log("✅ Messaggio inviato con successo!");
-        } else {
-            console.log("⚠️ Il messaggio è già presente nel canale.");
-        }
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('open_ticket')
+                .setLabel('📧 Apri Ticket')
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        console.log("📤 Inviando il messaggio nel canale ticket...");
+        await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
+        console.log("✅ Messaggio inviato con successo!");
     } catch (error) {
         console.error("❌ Errore durante l'invio del messaggio nel canale ticket:", error);
     }
