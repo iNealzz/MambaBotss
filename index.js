@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
@@ -21,7 +21,7 @@ const TRIGGER_CHANNELS = {
 // Configurazione Ticket System
 const TICKET_CATEGORY_ID = "1103995307341140008";
 const TICKET_CHANNEL_ID = "990911592302514226";
-const STAFF_ROLES = ["👑FOUNDER", "🔥 ADMIN", "⚙️ MODERATORE", "✏️ DISCORD DESIGNER"];
+const STAFF_ROLES = ["👑FOUNDER", "✏️ DISCORD DESIGNER"];
 const activeTickets = new Map();
 
 const client = new Client({
@@ -68,6 +68,33 @@ client.once('ready', async () => {
         console.log("✅ Messaggio inviato con successo!");
     } catch (error) {
         console.error("❌ Errore durante l'invio del messaggio nel canale ticket:", error);
+    }
+});
+
+client.on('interactionCreate', async interaction => {
+    if (!interaction.isCommand()) return;
+    
+    if (interaction.commandName === 'ticket') {
+        const memberRoles = interaction.member.roles.cache.map(role => role.name);
+        if (!STAFF_ROLES.some(role => memberRoles.includes(role))) {
+            return interaction.reply({ content: "❌ Non hai il permesso di usare questo comando.", ephemeral: true });
+        }
+        
+        const guild = interaction.guild;
+        const channel = guild.channels.cache.get(TICKET_CHANNEL_ID);
+        if (!channel) {
+            return interaction.reply({ content: "❌ Canale ticket non trovato!", ephemeral: true });
+        }
+        
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('open_ticket')
+                .setLabel('📧 Apri Ticket')
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
+        await interaction.reply({ content: "✅ Messaggio inviato nel canale ticket!", ephemeral: true });
     }
 });
 
