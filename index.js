@@ -16,8 +16,8 @@ const TRIGGER_CHANNELS = {
     "🕛 | CREA STANZA 4": "1336485340893941862",
 };
 
-const TICKET_CATEGORY_ID = "YOUR_TICKET_CATEGORY_ID"; // ID della categoria dei ticket
-const SUPPORT_ROLE_ID = "YOUR_SUPPORT_ROLE_ID"; // ID del ruolo del supporto
+const TICKET_CATEGORY_ID = "1103995307341140008";
+const SUPPORT_ROLE_ID = "990911592302514226";
 
 const client = new Client({
     intents: [
@@ -129,6 +129,8 @@ client.on('interactionCreate', async interaction => {
 
 client.on('messageCreate', async message => {
     if (message.content === '!setup-ticket') {
+        console.log("✅ Comando ricevuto!");
+        
         const embed = new EmbedBuilder()
             .setColor("Green")
             .setTitle("🎫 Apri un Ticket")
@@ -142,7 +144,12 @@ client.on('messageCreate', async message => {
                     .setStyle(ButtonStyle.Primary)
             );
 
-        await message.channel.send({ embeds: [embed], components: [button] });
+        try {
+            await message.channel.send({ embeds: [embed], components: [button] });
+            console.log("✅ Messaggio inviato!");
+        } catch (error) {
+            console.error("❌ Errore nell'invio del messaggio:", error);
+        }
     }
 });
 
