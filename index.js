@@ -21,7 +21,7 @@ const TRIGGER_CHANNELS = {
 // Configurazione Ticket System
 const TICKET_CATEGORY_ID = "1103995307341140008";
 const TICKET_CHANNEL_ID = "990911592302514226";
-const STAFF_ROLES = ["Founder", "Admin", "Moderatore"];
+const STAFF_ROLES = ["👑FOUNDER", "🔥 ADMIN", "⚙️ MODERATORE", "✏️ DISCORD DESIGNER"];
 const activeTickets = new Map();
 
 const client = new Client({
@@ -38,14 +38,16 @@ client.once('ready', async () => {
     console.log(`✅ Bot ${client.user.tag} è online!`);
     const channel = await client.channels.fetch(TICKET_CHANNEL_ID);
     if (channel) {
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('open_ticket')
-                .setLabel('📧 Apri Ticket')
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
+        const messages = await channel.messages.fetch({ limit: 10 });
+        if (!messages.some(msg => msg.author.id === client.user.id)) {
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('open_ticket')
+                    .setLabel('📧 Apri Ticket')
+                    .setStyle(ButtonStyle.Primary)
+            );
+            await channel.send({ content: "**Apri un Ticket!**\nClicca il bottone per aprire un Ticket.", components: [row] });
+        }
     }
 });
 
