@@ -35,31 +35,29 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
     let baseNick = newMember.user.username; // Usa sempre il nome utente base
-    let foundTag = "";
+    let tags = [];
 
     // Trova tutti i ruoli con tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
         if (newMember.roles.cache.some(r => r.name === roleName)) {
-            foundTag = tag;
-            break;
+            tags.push(tag);
         }
     }
 
-    if (foundTag) {
-        let newNick = `${foundTag}${baseNick}`;
+    if (tags.length > 0) {
+        let newNick = `${tags.join('')}${baseNick}`;
 
         // Se il nickname è già corretto, non fare nulla
-        if (newMember.nickname === newNick) {
+        if (newMember.nickname !== newNick) {
+            try {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Aspetta 1 secondo per evitare rate limits
+                await newMember.setNickname(newNick);
+                console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
+            } catch (error) {
+                console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
+            }
+        } else {
             console.log(`✅ Il nickname di ${newMember.user.username} è già corretto: ${newNick}`);
-            return;
-        }
-
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Aspetta 1 secondo per evitare rate limits
-            await newMember.setNickname(newNick);
-            console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
-        } catch (error) {
-            console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
         }
     } else {
         console.log(`⚠ Nessun ruolo con tag trovato per ${newMember.user.username}`);
