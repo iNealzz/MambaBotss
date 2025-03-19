@@ -11,11 +11,11 @@ const TRIGGER_CHANNELS = {
     "🕛 | CREA STANZA 4": "1336485340893941862", // VALORANT
 };
 
-// Mappatura dei ruoli e tag corrispondenti (ordine di priorità)
+// Ruoli e tag associati con priorità
 const ROLE_TAGS = [
     { id: "1320059077392334989", tag: "[MAMBA]" },
     { id: "1329132463783547000", tag: "[M.PROVA]" },
-    { id: "1343977810443632762", tag: "[ACADEMY]" },
+    { id: "1343977810443632762", tag: "[ACADEMY]" }
 ];
 
 const client = new Client({
@@ -48,7 +48,7 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
 
         const newChannel = await guild.channels.create({
             name: channelName,
-            type: 2, // Tipo Voice Channel
+            type: 2, // Canale vocale
             parent: category.id
         });
 
@@ -60,26 +60,24 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
     }
 });
 
-// Aggiorna il nome del canale quando i ruoli cambiano
+// Aggiorna il nome del canale vocale quando i ruoli vengono modificati
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
-        const tag = getHighestRoleTag(newMember);
-        const voiceChannel = newMember.voice.channel;
-        if (voiceChannel && voiceChannel.name.includes(newMember.user.username)) {
-            const newName = tag ? `${tag} ${newMember.user.username}` : `${newMember.user.username} Channel`;
-            await voiceChannel.setName(newName).catch(console.error);
-        }
+    const voiceChannel = newMember.voice.channel;
+
+    if (!voiceChannel) return;
+
+    const tag = getHighestRoleTag(newMember);
+    const newName = tag ? `${tag} ${newMember.user.username}` : `${newMember.user.username} Channel`;
+
+    if (voiceChannel.name !== newName) {
+        await voiceChannel.setName(newName).catch(console.error);
     }
 });
 
-// Trova il tag del ruolo con priorità più alta
+// Trova il tag del ruolo con la priorità più alta
 function getHighestRoleTag(member) {
-    for (const roleData of ROLE_TAGS) {
-        if (member.roles.cache.has(roleData.id)) {
-            return roleData.tag;
-        }
-    }
-    return null;
+    const role = ROLE_TAGS.find(role => member.roles.cache.has(role.id));
+    return role ? role.tag : null;
 }
 
 client.login(TOKEN);
