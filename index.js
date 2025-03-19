@@ -3,13 +3,6 @@ const { Client, GatewayIntentBits } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
-// Mappa di ruoli e tag corrispondenti
-const ROLE_TAGS = {
-    "🐍 MAMBA TEAM": "[MAMBA] ",
-    "🐍 MAMBA PROVA": "[M.PROVA] ",
-    "🐍 ACADEMY MAMBA": "[ACADEMY] "
-};
-
 // Canali trigger per la creazione di stanze vocali
 const TRIGGER_CHANNELS = {
     "🕛 | CREA STANZA 1": "1305304019987730432", // VOCALI
@@ -17,6 +10,13 @@ const TRIGGER_CHANNELS = {
     "🕛 | CREA STANZA 3": "1305301814761226340", // STREAMZONE
     "🕛 | CREA STANZA 4": "1336485340893941862", // VALORANT
 };
+
+// Mappatura dei ruoli e tag corrispondenti (ordine di priorità)
+const ROLE_TAGS = [
+    { id: "1320059077392334989", tag: "[MAMBA]" },
+    { id: "1329132463783547000", tag: "[M.PROVA]" },
+    { id: "1343977810443632762", tag: "[ACADEMY]" },
+];
 
 const client = new Client({
     intents: [
@@ -30,37 +30,6 @@ client.once('ready', () => {
     console.log(`✅ Bot ${client.user.tag} è online!`);
 });
 
-// Modifica il nickname quando viene assegnato un ruolo con una tag
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
-    
-    let baseNick = newMember.user.username; // Usa sempre il nome utente base
-    let tags = [];
-
-    // Trova tutti i ruoli con tag
-    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        if (newMember.roles.cache.some(r => r.name === roleName)) {
-            tags.push(tag);
-        }
-    }
-
-    let newNick = tags.length > 0 ? `${tags.join('')} ${baseNick}` : baseNick;
-
-    // Se il nickname è già corretto, non fare nulla
-    if (newMember.nickname !== newNick) {
-        try {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Aspetta 1 secondo per evitare rate limits
-            await newMember.setNickname(newNick);
-            console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
-        } catch (error) {
-            console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
-        }
-    } else {
-        console.log(`✅ Il nickname di ${newMember.user.username} è già corretto: ${newNick}`);
-    }
-});
-
-// Creazione e gestione delle stanze vocali
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const member = newState.member;
     const guild = newState.guild;
@@ -74,8 +43,11 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
             return;
         }
 
+        const tag = getHighestRoleTag(member);
+        const channelName = tag ? `${tag} ${member.user.username}` : `${member.user.username} Channel`;
+
         const newChannel = await guild.channels.create({
-            name: `${member.user.username} Channel`,
+            name: channelName,
             type: 2, // Tipo Voice Channel
             parent: category.id
         });
@@ -83,9 +55,31 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
         await member.voice.setChannel(newChannel);
     }
 
-    if (oldState.channel && !newState.channel && oldState.channel.name.endsWith("Channel") && oldState.channel.members.size === 0) {
+    if (oldState.channel && !newState.channel && oldState.channel.name.includes("Channel") && oldState.channel.members.size === 0) {
         await oldState.channel.delete();
     }
 });
+
+// Aggiorna il nome del canale quando i ruoli cambiano
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    if (oldMember.roles.cache.size !== newMember.roles.cache.size) {
+        const tag = getHighestRoleTag(newMember);
+        const voiceChannel = newMember.voice.channel;
+        if (voiceChannel && voiceChannel.name.includes(newMember.user.username)) {
+            const newName = tag ? `${tag} ${newMember.user.username}` : `${newMember.user.username} Channel`;
+            await voiceChannel.setName(newName).catch(console.error);
+        }
+    }
+});
+
+// Trova il tag del ruolo con priorità più alta
+function getHighestRoleTag(member) {
+    for (const roleData of ROLE_TAGS) {
+        if (member.roles.cache.has(roleData.id)) {
+            return roleData.tag;
+        }
+    }
+    return null;
+}
 
 client.login(TOKEN);
