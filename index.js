@@ -34,10 +34,10 @@ client.once('ready', () => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
-    let baseNick = newMember.nickname || newMember.user.username; // Usa il nickname attuale se esiste
+    let baseNick = newMember.user.username; // Usa sempre il nome utente base
     let foundTag = "";
 
-    // Trova il primo ruolo con tag
+    // Trova tutti i ruoli con tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
         if (newMember.roles.cache.some(r => r.name === roleName)) {
             foundTag = tag;
@@ -46,9 +46,7 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     }
 
     if (foundTag) {
-        // Rimuove eventuali tag già presenti
-        let cleanNick = baseNick.replace(/^\[.*?\] /, "").trim();
-        let newNick = `${foundTag}${cleanNick}`;
+        let newNick = `${foundTag}${baseNick}`;
 
         // Se il nickname è già corretto, non fare nulla
         if (newMember.nickname === newNick) {
