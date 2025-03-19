@@ -39,7 +39,7 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
         console.log(`- ${role.name} (${role.id})`);
     });
 
-    let baseNick = newMember.user.username; // Usa sempre lo username originale
+    let baseNick = newMember.nickname || newMember.user.username; // Usa il nickname attuale se esiste
     let foundTag = "";
 
     // Controlla se l'utente ha uno dei ruoli con tag
@@ -51,10 +51,11 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
         }
     }
 
-    let newNick = foundTag + baseNick;
+    if (foundTag) {
+        // Rimuove eventuali tag già presenti
+        baseNick = baseNick.replace(/^\[.*?\] /, "");
+        let newNick = foundTag + baseNick;
 
-    // Aggiorna il nickname solo se non ha già il tag corretto
-    if (!newMember.nickname || !newMember.nickname.startsWith(foundTag)) {
         try {
             await new Promise(resolve => setTimeout(resolve, 1000)); // Attendi 1 secondo per evitare rate limits
             await newMember.setNickname(newNick);
@@ -63,7 +64,7 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
             console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
         }
     } else {
-        console.log(`⚠ Nessuna modifica necessaria per ${newMember.user.username}`);
+        console.log(`⚠ Nessun ruolo con tag trovato per ${newMember.user.username}`);
     }
 });
 
