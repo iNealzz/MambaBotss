@@ -21,7 +21,7 @@ const TRIGGER_CHANNELS = {
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMembers, // NECESSARIO per rilevare i cambiamenti nei ruoli
         GatewayIntentBits.GuildVoiceStates
     ]
 });
@@ -34,33 +34,38 @@ client.once('ready', () => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
-    let baseNick = newMember.user.username; // Usa sempre il nome utente base
-    let tags = [];
+    let currentNick = newMember.nickname || newMember.user.username;
+    let baseNick = currentNick;
+    let foundTag = "";
 
-    // Trova tutti i ruoli con tag
-    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        if (newMember.roles.cache.some(r => r.name === roleName)) {
-            tags.push(tag);
+    // Rimuove solo il tag esistente se è nella lista ROLE_TAGS
+    for (const tag of Object.values(ROLE_TAGS)) {
+        if (currentNick.startsWith(tag)) {
+            baseNick = currentNick.replace(tag, '').trim();
         }
     }
 
-    if (tags.length > 0) {
-        let newNick = `${tags.join('')}${baseNick}`;
+    // Trova il nuovo tag da applicare
+    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
+        const role = newMember.guild.roles.cache.find(r => r.name === roleName);
+        if (role && newMember.roles.cache.has(role.id)) {
+            foundTag = tag;
+            break; // Usa solo il primo tag trovato
+        }
+    }
 
-        // Se il nickname è già corretto, non fare nulla
-        if (newMember.nickname !== newNick) {
-            try {
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Aspetta 1 secondo per evitare rate limits
-                await newMember.setNickname(newNick);
-                console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
-            } catch (error) {
-                console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
-            }
-        } else {
-            console.log(`✅ Il nickname di ${newMember.user.username} è già corretto: ${newNick}`);
+    let newNick = foundTag ? foundTag + baseNick : baseNick;
+
+    // Aggiorna il nickname solo se è cambiato
+    if (newNick !== currentNick) {
+        try {
+            await newMember.setNickname(newNick);
+            console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
+        } catch (error) {
+            console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
         }
     } else {
-        console.log(`⚠ Nessun ruolo con tag trovato per ${newMember.user.username}`);
+        console.log(`⚠ Nessuna modifica necessaria per ${newMember.user.username}`);
     }
 });
 
