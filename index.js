@@ -3,6 +3,13 @@ const { Client, GatewayIntentBits } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 
+// Mappa di ruoli e tag corrispondenti
+const ROLE_TAGS = {
+    "🐍 MAMBA TEAM": "[MAMBA] ",
+    "🐍 MAMBA PROVA": "[M.PROVA] ",
+    "🐍 ACADEMY MAMBA": "[ACADEMY] "
+};
+
 // Canali trigger per la creazione di stanze vocali
 const TRIGGER_CHANNELS = {
     "🕛 | CREA STANZA 1": "1305304019987730432", // VOCALI
@@ -11,17 +18,10 @@ const TRIGGER_CHANNELS = {
     "🕛 | CREA STANZA 4": "1336485340893941862", // VALORANT
 };
 
-// Ruoli e tag associati con priorità
-const ROLE_TAGS = [
-    { id: "1320059077392334989", tag: "[MAMBA]" },
-    { id: "1329132463783547000", tag: "[M.PROVA]" },
-    { id: "1343977810443632762", tag: "[ACADEMY]" }
-];
-
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMembers, // NECESSARIO per rilevare i cambiamenti nei ruoli
         GatewayIntentBits.GuildVoiceStates
     ]
 });
@@ -30,6 +30,46 @@ client.once('ready', () => {
     console.log(`✅ Bot ${client.user.tag} è online!`);
 });
 
+// Modifica il nickname quando viene assegnato un ruolo con una tag
+client.on('guildMemberUpdate', async (oldMember, newMember) => {
+    console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
+    
+    let currentNick = newMember.nickname || newMember.user.username;
+    let baseNick = currentNick;
+    let foundTag = "";
+
+    // Rimuove solo il tag esistente se è nella lista ROLE_TAGS
+    for (const tag of Object.values(ROLE_TAGS)) {
+        if (currentNick.startsWith(tag)) {
+            baseNick = currentNick.replace(tag, '').trim();
+        }
+    }
+
+    // Trova il nuovo tag da applicare
+    for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
+        const role = newMember.guild.roles.cache.find(r => r.name === roleName);
+        if (role && newMember.roles.cache.has(role.id)) {
+            foundTag = tag;
+            break; // Usa solo il primo tag trovato
+        }
+    }
+
+    let newNick = foundTag ? foundTag + baseNick : baseNick;
+
+    // Aggiorna il nickname solo se è cambiato
+    if (newNick !== currentNick) {
+        try {
+            await newMember.setNickname(newNick);
+            console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
+        } catch (error) {
+            console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
+        }
+    } else {
+        console.log(`⚠ Nessuna modifica necessaria per ${newMember.user.username}`);
+    }
+});
+
+// Creazione e gestione delle stanze vocali
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const member = newState.member;
     const guild = newState.guild;
@@ -43,41 +83,18 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
             return;
         }
 
-        const tag = getHighestRoleTag(member);
-        const channelName = tag ? `${tag} ${member.user.username}` : `${member.user.username} Channel`;
-
         const newChannel = await guild.channels.create({
-            name: channelName,
-            type: 2, // Canale vocale
+            name: `${member.user.username} Channel`,
+            type: 2, // Tipo Voice Channel
             parent: category.id
         });
 
         await member.voice.setChannel(newChannel);
     }
 
-    if (oldState.channel && !newState.channel && oldState.channel.name.includes("Channel") && oldState.channel.members.size === 0) {
+    if (oldState.channel && !newState.channel && oldState.channel.name.endsWith("Channel") && oldState.channel.members.size === 0) {
         await oldState.channel.delete();
     }
 });
-
-// Aggiorna il nome del canale vocale quando i ruoli vengono modificati
-client.on('guildMemberUpdate', async (oldMember, newMember) => {
-    const voiceChannel = newMember.voice.channel;
-
-    if (!voiceChannel) return;
-
-    const tag = getHighestRoleTag(newMember);
-    const newName = tag ? `${tag} ${newMember.user.username}` : `${newMember.user.username} Channel`;
-
-    if (voiceChannel.name !== newName) {
-        await voiceChannel.setName(newName).catch(console.error);
-    }
-});
-
-// Trova il tag del ruolo con la priorità più alta
-function getHighestRoleTag(member) {
-    const role = ROLE_TAGS.find(role => member.roles.cache.has(role.id));
-    return role ? role.tag : null;
-}
 
 client.login(TOKEN);
