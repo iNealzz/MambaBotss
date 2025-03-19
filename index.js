@@ -21,7 +21,7 @@ const TRIGGER_CHANNELS = {
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers, // NECESSARIO per rilevare i cambiamenti nei ruoli
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildVoiceStates
     ]
 });
@@ -34,38 +34,29 @@ client.once('ready', () => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
-    let currentNick = newMember.nickname || newMember.user.username;
-    let baseNick = currentNick;
-    let foundTag = "";
+    let baseNick = newMember.user.username; // Usa sempre il nome utente base
+    let tags = [];
 
-    // Rimuove solo il tag esistente se è nella lista ROLE_TAGS
-    for (const tag of Object.values(ROLE_TAGS)) {
-        if (currentNick.startsWith(tag)) {
-            baseNick = currentNick.replace(tag, '').trim();
-        }
-    }
-
-    // Trova il nuovo tag da applicare
+    // Trova tutti i ruoli con tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        const role = newMember.guild.roles.cache.find(r => r.name === roleName);
-        if (role && newMember.roles.cache.has(role.id)) {
-            foundTag = tag;
-            break; // Usa solo il primo tag trovato
+        if (newMember.roles.cache.some(r => r.name === roleName)) {
+            tags.push(tag);
         }
     }
 
-    let newNick = foundTag ? foundTag + baseNick : baseNick;
+    let newNick = tags.length > 0 ? `${tags.join('')} ${baseNick}` : baseNick;
 
-    // Aggiorna il nickname solo se è cambiato
-    if (newNick !== currentNick) {
+    // Se il nickname è già corretto, non fare nulla
+    if (newMember.nickname !== newNick) {
         try {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Aspetta 1 secondo per evitare rate limits
             await newMember.setNickname(newNick);
             console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
         } catch (error) {
             console.error(`❌ Errore nel cambio nickname di ${newMember.user.username}: ${error}`);
         }
     } else {
-        console.log(`⚠ Nessuna modifica necessaria per ${newMember.user.username}`);
+        console.log(`✅ Il nickname di ${newMember.user.username} è già corretto: ${newNick}`);
     }
 });
 
