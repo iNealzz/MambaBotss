@@ -52,10 +52,9 @@ client.on('guildMemberUpdate', async (oldMember, newMember) => {
     }
 
     let newNick = foundTag + baseNick;
-    let currentNick = newMember.nickname || newMember.user.username; // Evita problemi con null
 
-    // Aggiorna il nickname solo se è cambiato
-    if (newNick !== currentNick) {
+    // Aggiorna il nickname solo se non ha già il tag corretto
+    if (!newMember.nickname || !newMember.nickname.startsWith(foundTag)) {
         try {
             await new Promise(resolve => setTimeout(resolve, 1000)); // Attendi 1 secondo per evitare rate limits
             await newMember.setNickname(newNick);
