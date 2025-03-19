@@ -21,7 +21,7 @@ const TRIGGER_CHANNELS = {
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMembers, // NECESSARIO per rilevare i cambiamenti nei ruoli
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildVoiceStates
     ]
 });
@@ -34,23 +34,30 @@ client.once('ready', () => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
+    console.log(`📌 Ruoli attuali di ${newMember.user.username}:`);
+    newMember.roles.cache.forEach(role => {
+        console.log(`- ${role.name} (${role.id})`);
+    });
+
     let baseNick = newMember.user.username; // Usa sempre lo username originale
     let foundTag = "";
 
     // Controlla se l'utente ha uno dei ruoli con tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        const role = newMember.guild.roles.cache.find(r => r.name === roleName);
-        if (role && newMember.roles.cache.has(role.id)) {
+        const role = newMember.roles.cache.find(r => r.name === roleName);
+        if (role) {
             foundTag = tag;
             break; // Usa solo il primo tag trovato
         }
     }
 
     let newNick = foundTag + baseNick;
+    let currentNick = newMember.nickname || newMember.user.username; // Evita problemi con null
 
     // Aggiorna il nickname solo se è cambiato
-    if (newNick !== newMember.nickname) {
+    if (newNick !== currentNick) {
         try {
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Attendi 1 secondo per evitare rate limits
             await newMember.setNickname(newNick);
             console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
         } catch (error) {
