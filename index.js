@@ -34,30 +34,30 @@ client.once('ready', () => {
 client.on('guildMemberUpdate', async (oldMember, newMember) => {
     console.log(`🔍 Evento attivato per: ${newMember.user.username}`);
     
-    console.log(`📌 Ruoli attuali di ${newMember.user.username}:`);
-    newMember.roles.cache.forEach(role => {
-        console.log(`- ${role.name} (${role.id})`);
-    });
-
     let baseNick = newMember.nickname || newMember.user.username; // Usa il nickname attuale se esiste
     let foundTag = "";
 
-    // Controlla se l'utente ha uno dei ruoli con tag
+    // Trova il primo ruolo con tag
     for (const [roleName, tag] of Object.entries(ROLE_TAGS)) {
-        const role = newMember.roles.cache.find(r => r.name === roleName);
-        if (role) {
+        if (newMember.roles.cache.some(r => r.name === roleName)) {
             foundTag = tag;
-            break; // Usa solo il primo tag trovato
+            break;
         }
     }
 
     if (foundTag) {
         // Rimuove eventuali tag già presenti
-        baseNick = baseNick.replace(/^\[.*?\] /, "");
-        let newNick = foundTag + baseNick;
+        let cleanNick = baseNick.replace(/^\[.*?\] /, "").trim();
+        let newNick = `${foundTag}${cleanNick}`;
+
+        // Se il nickname è già corretto, non fare nulla
+        if (newMember.nickname === newNick) {
+            console.log(`✅ Il nickname di ${newMember.user.username} è già corretto: ${newNick}`);
+            return;
+        }
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Attendi 1 secondo per evitare rate limits
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Aspetta 1 secondo per evitare rate limits
             await newMember.setNickname(newNick);
             console.log(`✅ Nickname aggiornato per ${newMember.user.username} a ${newNick}`);
         } catch (error) {
